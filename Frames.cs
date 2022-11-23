@@ -11,7 +11,7 @@ namespace VideoGluer
         private static readonly int width = Form1.VideoWidth;
         private static readonly int height = Form1.VideoHeight;
         private static readonly Bitmap Black = new Bitmap(width, height);
-        private static Bitmap IsEnd;//используется для определения коныа файла. Если null - файл закончился
+        private static Bitmap IsEnd;//используется для определения конца файла. Если null - файл закончился
         public static Bitmap GetFrames(ref VideoFileReader video, in int num)//num передаёт порядковый номер кадра
         {
             var countFrames = video.FrameCount;//получает количество кадров в видео
@@ -74,7 +74,12 @@ namespace VideoGluer
             }
             return Black;
         }
-
+        /// <summary>
+        /// Извлекает кадр из видео.
+        /// </summary>
+        /// <param name="video">Массив видеофайлов.</param>
+        /// <param name="num">Общее количество видеофайлов, которые нужно обработать.</param>
+        /// <returns>Возвращает кадр, пока видеофайо не закончился, иначе возвращает пустой кадр.</returns>
         public static Bitmap GetFrames(ref VideoFileReader[] video, in int num)//num количество видеофайлов в списке
         {
             for (int i = 0; i < num; i++)
@@ -88,10 +93,32 @@ namespace VideoGluer
             return Black;
         }
 
+        public static Bitmap GetFrames(VideoFileReader[] video, in int num)//num количество видеофайлов в списке
+        {
+            for (int i = 0; i < num; i++)
+            {
+                IsEnd = video[i].ReadVideoFrame();
+                if (IsEnd != null)
+                {
+                    return IsEnd;
+                }
+            }
+            return Black;
+        }
+        /// <summary>
+        /// Вычисляет сумму кадров в списке.
+        /// </summary>
+        /// <param name="videos"></param>
+        /// <returns>Возвращает сумму кадров.</returns>
         public static long SumFrameCount(List<VideoFileReader> videos)
         {
             return videos.Sum(video => video.FrameCount);
         }
+        /// <summary>
+        /// Вычисляет максимальное количество кадров, которые необходимо обработать.
+        /// </summary>
+        /// <param name="videos"></param>
+        /// <returns>Возвращает количество кадров.</returns>
         public static long MaxFrameCount(List<List<VideoFileReader>> videos)
         {
             long max = 0;
