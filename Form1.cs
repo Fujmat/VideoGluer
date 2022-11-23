@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Accord;
+using System.Drawing.Text;
 
 namespace VideoGluer
 {
@@ -20,8 +21,9 @@ namespace VideoGluer
         public Form1()
         {
             InitializeComponent();
+            this.listBox1.DragDrop += new DragEventHandler(this.listBox1_DragDrop);
+            this.listBox1.DragEnter += new DragEventHandler(this.listBox1_DragEnter);
         }
-        private string FolderName { get; set; }
 
         private static int Framerate;
         private static VideoCodec Videocodec = VideoCodec.MPEG4;
@@ -29,80 +31,50 @@ namespace VideoGluer
         public static int VideoWidth;
         public static int VideoHeight;
 
-        public static List<List<VideoFileReader>> VideosArray;
-        public static VideoFileReader[][] FinallyVideosArray;
-        private List<List<string>> CompleteDirectory = new List<List<string>>();
+        public static List<List<VideoFileReader>> VideosArray;//массив с открытыми видео
+        public static VideoFileReader[][] FinallyVideosArray;//массив с открытыми видео
+        private List<List<string>> CompleteDirectory = new List<List<string>>();//полные пути видео
+        private string[] folderpath;
 
-        //private string[] directoryfolder;
-        
-        private string InstallVideoDirectory = "C:/Users/User/Desktop/FramesGluerTest/Video4.mp4";
-        //private List<string> CompleteDirectory = new List<string>();
-        private List<string> Names = new List<string>()
-        {
-            "01",
-            "01",
-            "02",
-            "03",
-            "03",
-            "04",
-            "05",
-            "05",
-            "06",
-            "07",
-            "07",
-            "08"
-        };
-
-        private string FilePath { get; set; } = "C:/Users/User/Desktop/Videopapka/01_2022_05_18_09_39_00__09_45_50.mp4";
-        private string[] Files = new string[6] 
-        {
-            "C:/Users/User/Desktop/Videopapka/01_2022_05_18_09_39_00__09_45_50.mp4",
-            "C:/Users/User/Desktop/Videopapka/01_2022_05_18_09_39_00__09_59_59.mp4",
-            "C:/Users/User/Desktop/Videopapka/02_2022_05_18_09_39_00__09_45_50.mp4",
-            "C:/Users/User/Desktop/Videopapka/04_2022_05_18_09_39_00__09_59_06.mp4",
-            "C:/Users/User/Desktop/Videopapka/06_2022_05_18_09_39_00__09_45_50.mp4",
-            "C:/Users/User/Desktop/Videopapka/07_2022_05_18_09_39_00__09_45_50.mp4",
-
-        };
-
-        private string[] Filenames = new string[6]
-        {
-            "01_2022_05_18_09_39_00__09_45_50.mp4",
-            "01_2022_05_18_09_39_00__09_59_59.mp4",
-            "02_2022_05_18_09_39_00__09_45_50.mp4",
-            "04_2022_05_18_09_39_00__09_59_06.mp4",
-            "06_2022_05_18_09_39_00__09_45_50.mp4",
-            "07_2022_05_18_09_39_00__09_45_50.mp4",
-
-        };
+        private string InstallVideoDirectory = "C:/Users/User/Desktop/FramesGluerTest/";
 
         private void button1_Click(object sender, EventArgs e)
         {
-            
-
-            var openFileDialog1 = new FolderBrowserDialog();
-            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            if (backgroundWorker1.IsBusy != true)
             {
-                FolderName = openFileDialog1.SelectedPath;
-
-                PathVideo pathVideo = new PathVideo();
-
-                pathVideo.FullName = Directory.GetFiles(FolderName);//полное имя файла 
-                pathVideo.Name = GetPathes.GetFileNames(pathVideo.FullName);//имя файла
-
-                CompleteDirectory = GetPathes.GetPathVideos(ref pathVideo);
-                VideosArray = GetPathes.Opener(ref CompleteDirectory);//работает, можно обрабатывать
-                VideosArray = GetPathes.DeleteNullLists(ref VideosArray);//удаляет пустые элементы(несуществующие камеры)
-                FinallyVideosArray = GetPathes.ConvertToArray(ref VideosArray);//конвертирует List в массив (для передачи
-                                                                               //параметров с ref). Но на производительность
-                                                                               //это не повлияло
+                button1.Enabled = false;
+                backgroundWorker1.RunWorkerAsync();
             }
-            GetVideoInf();
+
+        }
+
+
+
+        /// <summary>
+        /// Обробатывает список видеофайлов, указанных по заданному пути.
+        /// </summary>
+        /// <param name="path">Путь к папке с видеофайлами.</param>
+        private void VideoHandler(string path)
+        {
+            string namefolder = new DirectoryInfo(path).Name;//path
+            PathVideo pathVideo = new PathVideo();
+
+            pathVideo.FullName = Directory.GetFiles(path);//полное имя файла//path 
+            pathVideo.Name = GetPathes.GetFileNames(pathVideo.FullName);//название файла с расширением
+
+            CompleteDirectory = GetPathes.GetPathVideos(ref pathVideo);
+            VideosArray = GetPathes.Opener(ref CompleteDirectory);//работает, можно обрабатывать
+            VideosArray = GetPathes.DeleteNullLists(ref VideosArray);//удаляет пустые элементы(несуществующие камеры)
+            FinallyVideosArray = GetPathes.ConvertToArray(ref VideosArray);//конвертирует List в массив (для передачи
+                                                                           //параметров с ref). Но на производительность
+                                                                           //это не повлияло
+                                                                           //}
+            GetVideoInf(FinallyVideosArray);
 
             int CountFrames = (int)Frames.MaxFrameCount(VideosArray);
 
             VideoFileWriter vfw = new VideoFileWriter();
-            vfw.Open($"{InstallVideoDirectory}", VideoWidth * 3, VideoHeight * 2, Framerate, Videocodec, Bitrate);
+            vfw.Open($"{InstallVideoDirectory}/{namefolder}.mp4", VideoWidth * 3, VideoHeight * 2, Framerate, Videocodec, Bitrate);
 
             for (int i = 0; i < CountFrames; i++)
             {
@@ -115,105 +87,76 @@ namespace VideoGluer
             }
             vfw.Close();
 
-            /*for (int i = 0; i < Files.Length; i++)
+            /*for (int i = 0; i < FinallyVideosArray.Length; i++)
             {
-                videos[i] = new VideoFileReader();
-                videos[i].Open(Files[i]);
+                for (int j = 0; j < FinallyVideosArray[i].Length; j++)
+                {
+                    FinallyVideosArray[i][j].Close();
+                    FinallyVideosArray[i][j].Dispose();
+                }
             }*/
-
-
-
-
-
-
-            /*var vivod = GetPathes.GetPathVideos(Names);
-            var ssvvswv = vivod;*/
-            /*GetVideoInf();
-
-            VideoFileReader[] videos = new VideoFileReader[Files.Length];
-            for (int i = 0; i < Files.Length; i++)
-            {
-                videos[i] = new VideoFileReader();
-                videos[i].Open(Files[i]);
-            }
-
-
-            
-
-
-
-            VideoFileWriter vfw = new VideoFileWriter();
-            vfw.Open($"{InstallVideoDirectory}.mp4", VideoWidth*3, VideoHeight*2, Framerate, Videocodec, Bitrate);
-
-            for (int i = 0; i < 1000; i++)
-            {
-                vfw.WriteVideoFrame(GlueImage.GlueFrames(Frames.GetFrames(ref videos[0], i),
-                                                         Frames.GetFrames(ref videos[1], i),
-                                                         Frames.GetFrames(ref videos[2], i),
-                                                         Frames.GetFrames(ref videos[3], i),
-                                                         Frames.GetFrames(ref videos[4], i),
-                                                         Frames.GetFrames(ref videos[5], i)));
-            }
-            vfw.Close();
-
-            for (int i = 0; i < Files.Length; i++)
-            {
-                videos[i].Close();
-            }*/
-
-            /*
-             * Пока в папке есть видео, которое должно быть склеено сразу за следующим, алгоритм должен вытаскивать кадры из следующего 
-             * видео, продолжая запись в тот же видеопоток, не требуя записи на диск.
-             * Можно отсортировать массив путей по которым находятся видео, затем извлечь первые уникальные пути, потом
-             * когда кадры закончатся, перейти к следующему пути, который должен быть склеен с первым и извлекать кадры из него
-             * в тот же видеопоток.
-             * Например: 011 => обработка(извлекаем кадры) => кадры закончились => 012 => обработка(извлекаем кадры)
-             * 
-             * Отсортируем массив:
-             *  "01",
-                "01",
-                "02",
-                "03",
-                "03",
-                "04",
-                "05",
-                "05",
-                "06",
-                "07",
-                "07",
-                "08"
-            Проходим по элементам массива и сравниваем элементы. Если текущий элемент равен предыдущему, помечаем его номером как вторичный, 
-            третичный и т.д. Если текущий элемент не равен предыдущему - он уникальный, тоесть должен обрабатываться первым.
-
-             */
-
-            /* for (int i = 0; i < vivod.Count; i++)
-             {
-                 for (int j = 0; j < vivod.Count; j++)
-                 {
-                     richTextBox1.Text = vivod[i][j] + "\n"; 
-                 }
-             }*/
+            GC.Collect();
         }
-
-        
-        private void GetVideoInf()
+        /// <summary>
+        /// Открывает первое видео в списке и получает из него данные.
+        /// </summary>
+        /// <param name="videos"></param>
+        private void GetVideoInf(VideoFileReader[][] videos)
         {
-            var video = new VideoFileReader();
-            video.Open(FilePath);
-            Framerate = (int)video.FrameRate;
-            VideoWidth = video.Width;
-            VideoHeight = video.Height;
+            Framerate = (int)videos[0][0].FrameRate;
+            VideoWidth = videos[0][0].Width;
+            VideoHeight = videos[0][0].Height;
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-
+            
+            for (int i = 0; i < folderpath.Length; i++)
+            {
+                VideoHandler(folderpath[i]);
+            }
         }
 
         private void statusStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
 
+        }
+
+        private void listBox1_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = DragDropEffects.All;
+            else
+                e.Effect = DragDropEffects.None;
+        }
+
+        private void listBox1_DragDrop(object sender, DragEventArgs e)
+        {
+            folderpath = (string[])e.Data.GetData(DataFormats.FileDrop, false);
+            AddElementsInListBox(folderpath);
+        }
+        /// <summary>
+        /// выводит название папки и все файлы в ней в ListBox
+        /// </summary>
+        /// <param name="data"></param>
+        private void AddElementsInListBox(string[] data)
+        {
+            List<string[]> allpathes = new List<string[]>();
+            string[] namefolder = new string[data.Length];
+            for (int i = 0; i < data.Length; i++)
+            {
+                namefolder[i] = new DirectoryInfo(data[i]).Name;
+                allpathes.Add(Directory.GetFiles(data[i]));
+            }
+
+            for (int i = 0; i < allpathes.Count; i++)
+            {
+                listBox1.Items.Add(namefolder[i]);
+                for (int j = 0; j < allpathes[i].Length; j++)
+                {
+                    listBox1.Items.Add($". . . .{allpathes[i][j]}");
+                }
+            }
         }
     }
 }
